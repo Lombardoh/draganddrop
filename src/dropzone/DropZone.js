@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './DropZone.css';
+import axios from 'axios';
+
 
 const DropZone = () => {
     const [selectedFiles, setSelectedFiles] = useState([]);
@@ -8,6 +10,10 @@ const DropZone = () => {
     const modalImageRef = useRef();
     const modalRef = useRef();    
     const [unsupportedFiles, setUnsupportedFiles] = useState([]);
+    const fileInputRef = useRef();
+    const uploadModalRef = useRef();
+    const uploadRef = useRef();
+    const progressRef = useRef();
 
     const dragOver = (e) => {
         e.preventDefault();
@@ -115,7 +121,47 @@ const DropZone = () => {
     }
 
     const uploadFiles = () =>{
+        uploadModalRef.current.style.display = 'block';
+        uploadRef.current.innerHTML = 'File(s) Uploading...';
+        for(let i = 0; i < validFiles.length; i++){
+            const formData = new FormData();
+            formData.append('image', validFiles[i]);
+            formData.append('key', '9f66ee8fd16177e8e20ca7af10d2a248');
+            axios.post('https://api.imgbb.com/1/upload', formData, {
+                onUploadProgress: (progressEvent) => {
+                    const uploadPercentage = Math.floor((progressEvent.loaded / progressEvent.total) * 100)
+                    progressRef.current.innerHTML = `${uploadPercentage}%`;
+                    progressRef.current.style.width = `${uploadPercentage}%`;
+                    if (uploadPercentage === 100) {
+                        uploadRef.current.innerHTML = 'File(s) Uploaded';
+                        validFiles.length = 0;
+                        setValidFiles([...validFiles]);
+                        setSelectedFiles([...validFiles]);
+                        setUnsupportedFiles([...validFiles]);
+                    }
+                }
+            })
+            .catch(() => {
+                uploadRef.current.innerHTML = `<span class="error">Error Uploading File(s)</span>`;
+            
+                progressRef.current.style.backgroundColor = 'red';
+            })
+        }
+        
+    }
 
+    const fileInputClicked = () =>{
+        fileInputRef.current.click();
+    }
+
+    const fileSelected = () =>{
+        if(fileInputRef.current.files.length){
+            handleFiles(fileInputRef.current.files)
+        }
+    }
+
+    const closeUploadModal = () => {
+        uploadModalRef.current.style.display = 'none';
     }
 
     return (<>
@@ -128,8 +174,16 @@ const DropZone = () => {
                 onDragEnter={dragEnter}
                 onDragLeave={dragLeave}
                 onDrop={fileDrop}
+                onClick={fileInputClicked}
             >
                 <div className="drop-message">
+                    <input
+                        ref={fileInputRef}
+                        className="file-input"
+                        type="file"
+                        multiple
+                        onChange={fileSelected}
+                    />
                     <div className="upload-icon"></div>
                     Drag and Drop imagenes
                 </div>
@@ -158,6 +212,16 @@ const DropZone = () => {
             <span className="close" onClick={(() => closeModal())}>X</span>
             <div className="modal-image" ref={modalImageRef}></div>
         </div>
+        <div className="upload-modal" ref={uploadModalRef}>
+            <div className="overlay"></div>
+            <div className="close" onClick={(() => closeUploadModal())}>X</div>
+            <div className="progress-container">
+            <span ref={uploadRef}></span>
+            <div className="progress">
+                <div className="progress-bar" ref={progressRef}></div>
+            </div>
+        </div>  
+</div>
         </>
     )
 }
